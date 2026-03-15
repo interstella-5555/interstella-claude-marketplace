@@ -1,0 +1,14 @@
+{
+  "name": "interstella-claude-marketplace",
+  "description": "Interstella's Claude Code plugin marketplace",
+  "owner": { "name": "interstella-5555" },
+  "metadata": { "version": "1.0.0" },
+  "plugins": [
+    {
+      "name": "interstella-skills",
+      "description": "Enhanced Claude Code skills: writing-skills, claude-md-improver",
+      "source": "./plugins/interstella-skills",
+      "category": "productivity"
+    }
+  ]
+}
