@@ -27,3 +27,13 @@ mkdir -p ~/.claude/skills/boris && curl -L -o ~/.claude/skills/boris/SKILL.md ht
 ```
 
 Source: [howborisusesclaudecode.com](https://howborisusesclaudecode.com)
+
+### get-shit-done — Spec-Driven Development System
+
+Meta-prompting, context engineering and spec-driven development system for Claude Code by TÂCHES. Solves context rot — quality degradation as Claude fills its context window.
+
+```bash
+npx get-shit-done-cc@latest
+```
+
+Source: [github.com/gsd-build/get-shit-done](https://github.com/gsd-build/get-shit-done)

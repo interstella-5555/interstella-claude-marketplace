@@ -1,13 +1,6 @@
 ---
 name: x-product-bible
-description: |
-  Guide writing comprehensive product vision/bible documents that serve as the single source of truth for product decisions.
-  Use when: user asks to write a product vision, product bible, PRODUCT.md, product strategy document, product spec,
-  or when rewriting/analyzing an existing product document. Also use when user mentions "product-market fit",
-  "product principles", "what are we building and why", or wants to define/refine product direction.
-  Covers: vision statements, product principles, user personas (HXC), JTBD framing, competitive positioning,
-  monetization models, go-to-market strategy, success metrics, anti-goals, and gap analysis vs current implementation.
-user-invocable: true
+description: Guide writing comprehensive product vision/bible documents that serve as the single source of truth for product decisions. Use when user asks to write a product vision, product bible, PRODUCT.md, product strategy document, product spec, or when rewriting/analyzing an existing product document. Also use when user mentions "product-market fit", "product principles", "what are we building and why", or wants to define/refine product direction. Covers vision statements, product principles, user personas (HXC), JTBD framing, competitive positioning, monetization models, go-to-market strategy, success metrics, anti-goals, and gap analysis vs current implementation.
 ---
 
 # Writing Product Bible Documents
