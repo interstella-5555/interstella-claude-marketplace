@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "interstella-skills",
-      "description": "Enhanced Claude Code skills: writing-skills, claude-md-improver, wait-on-resources",
+      "description": "Enhanced Claude Code skills: writing-skills, claude-md-improver, wait-on-resources, product-bible, screenshot",
       "source": "./plugins/interstella-skills",
       "category": "productivity"
     }
