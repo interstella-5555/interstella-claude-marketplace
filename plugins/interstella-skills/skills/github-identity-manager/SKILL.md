@@ -26,12 +26,14 @@ Read `references/setup-guide.md` for the full technical reference.
 ```bash
 git --version                   # Must be 2.36+
 which gh                        # Must be installed
+which direnv                    # Must be installed
 ls /Applications/1Password.app  # Must be installed
 ls /Applications/1Password.app/Contents/MacOS/op-ssh-sign  # Must exist
 ```
 
 - **git missing** → install: `brew install git`
 - **gh missing** → install: `brew install gh`
+- **direnv missing** → install: `brew install direnv` — then ensure shell hook is configured ([direnv setup](https://direnv.net/docs/hook.html))
 - **1Password missing** → tell user: "1Password 8+ with an active subscription is required. Install from https://1password.com/downloads/mac — I can't install it for you."
 - **op-ssh-sign missing** → 1Password too old or SSH agent not enabled. Guide user to enable it.
 
@@ -111,7 +113,7 @@ If user invokes with a specific request, handle it directly:
 1. Ask: which account
 2. Remove `includeIf` block from `~/.gitconfig`
 3. Backup `~/.gitconfig-<name>` to `~/.ssh/backup/`
-4. Remove from `__auto_gh_account` in shell config
+4. Remove `.envrc` from the account's directory (or remove GH_TOKEN line if other vars present)
 5. `gh auth logout <account>`
 6. Tell user to remove key from GitHub manually
 
@@ -183,10 +185,10 @@ gh auth status
 # Must show correct account
 ```
 
-Also verify auto-switching mechanism exists in shell config:
+Also verify direnv `.envrc` files exist with GH_TOKEN:
 ```bash
-grep -A5 "__auto_gh_account\|GH_TOKEN" ~/.zshrc ~/.bashrc 2>/dev/null
-# Or check for direnv .envrc files with GH_TOKEN
+cat ~/code/.envrc ~/work/.envrc 2>/dev/null | grep GH_TOKEN
+# Each account directory should have .envrc with: export GH_TOKEN=$(gh auth token --user <username>)
 ```
 
 ### Check 9: Remotes use SSH
@@ -266,7 +268,7 @@ Before touching anything:
 > - `~/.gitconfig-<name>` per account — SSH key, signing, identity
 > - `~/.ssh/1password/<name>.pub` — public keys for key selection
 > - `~/.config/1Password/ssh/agent.toml` — enable vaults
-> - `~/.zshrc` or direnv — `gh` CLI auto-switching per directory
+> - `<directory>/.envrc` per account — direnv `gh` CLI auto-switching
 >
 > **You'll need to do manually:**
 > - Create SSH keys in 1Password (I'll guide you)
@@ -309,30 +311,35 @@ echo "<pub-key>" > ~/.ssh/1password/<name>.pub
 **For single-account setup:** skip `includeIf`, put everything in `~/.gitconfig` directly.
 
 #### 3f: gh CLI setup
-For each account:
+
+Install direnv if not present:
+```bash
+which direnv || brew install direnv
+```
+
+Ensure direnv hook is in shell config (check `~/.zshrc` for `eval "$(direnv hook zsh)"` or `plugins=(direnv)` in oh-my-zsh).
+
+For each account, `gh auth login`:
 ```bash
 gh auth login
 # Interactive: GitHub.com → SSH → select key → authenticate in browser
 ```
 
-Then set up auto-switching. **Prefer shell function over direnv** (works in all contexts):
+Then create direnv `.envrc` in each account's root directory:
 
 ```bash
-# Add to ~/.zshrc (or ~/.bashrc):
-__auto_gh_account() {
-  case "$PWD" in
-    ~/work*)     export GH_TOKEN=$(gh auth token --user <work-username>) ;;
-    ~/personal*) export GH_TOKEN=$(gh auth token --user <personal-username>) ;;
-    *) unset GH_TOKEN ;;
-  esac
-}
-chpwd_functions+=(__auto_gh_account)  # zsh: runs on every cd
-__auto_gh_account                      # run once on shell start
+# ~/work/.envrc
+echo 'export GH_TOKEN=$(gh auth token --user <work-username>)' > ~/work/.envrc
+direnv allow ~/work/.envrc
+
+# ~/personal/.envrc
+echo 'export GH_TOKEN=$(gh auth token --user <personal-username>)' > ~/personal/.envrc
+direnv allow ~/personal/.envrc
 ```
 
-For bash, use `PROMPT_COMMAND` instead of `chpwd_functions`.
+`gh auth token --user <name>` reads the stored OAuth token from macOS Keychain ([gh environment docs](https://cli.github.com/manual/gh_help_environment)). direnv loads `.envrc` from parent directories automatically — one file per account covers all repos in that directory.
 
-**For single-account setup:** skip auto-switching, just `gh auth login` once.
+**For single-account setup:** skip direnv, just `gh auth login` once.
 
 #### 3g: GitHub keys
 Guide user to add each key as both Authentication + Signing key on GitHub.
