@@ -3,11 +3,11 @@ name: writing-skills
 description: Use when creating new skills, editing existing skills, or improving skill quality. Enhanced version of writing-skills with Anthropic's complete guide, best practices, and expert insights as local references.
 ---
 
-# X-Writing-Skills
+# Writing Skills
 
 Enhanced skill-writing guide. Combines `superpowers:writing-skills` TDD methodology with Anthropic's official references and expert insights — all stored locally for deep consultation.
 
-**Announce at start:** "Using x-writing-skills — enhanced skill authoring with full Anthropic references."
+**Announce at start:** "Using writing-skills — enhanced skill authoring with full Anthropic references."
 
 ## Workflow
 
@@ -35,6 +35,7 @@ Enhanced skill-writing guide. Combines `superpowers:writing-skills` TDD methodol
 | **Skills vs CLAUDE.md vs hooks vs subagents** | `references/boris-cherny-insights.md` → "When to use what" |
 | **Claude Code workflows, worktrees, permissions, hooks** | `/boris` skill (maintained separately, always up-to-date) |
 | **Testing and bulletproofing** | `superpowers:writing-skills` → Testing sections + `testing-skills-with-subagents.md` |
+| **Real-world skill patterns from Anthropic** (9 types, gotchas, progressive disclosure examples, description writing, memory, scripts) | `references/thariq-lessons-skills.md` — from Thariq (Anthropic engineer, Claude Code team) |
 
 ## Key Principles (Condensed from All Sources)
 
@@ -88,4 +89,5 @@ Before deploying any skill:
 - `references/anthropic-complete-guide.md` — "The Complete Guide to Building Skills for Claude" (33-page PDF converted to markdown). Full lifecycle: fundamentals, planning, testing, distribution, 5 workflow patterns, troubleshooting.
 - `references/anthropic-complete-guide.pdf` — Original PDF for visual reference.
 - `references/boris-cherny-insights.md` — Unique operational insights from Boris Cherny (Head of Claude Code). Verification philosophy, compounding engineering, skills vs other features, subagent patterns.
+- `references/thariq-lessons-skills.md` — "Lessons from Building Claude Code: How We Use Skills" by Thariq (@trq212, Anthropic engineer, Claude Code team). 9 skill categories, concrete examples with code, tips on gotchas sections, progressive disclosure hub-and-spoke pattern, description writing, memory/data persistence, composable scripts. First-party source — same authority level as Boris Cherny.
 - `/boris` skill — Broader Claude Code workflow tips from Boris (worktrees, permissions, hooks, parallel sessions, etc.). Maintained separately — always current. Consult for general Claude Code context when designing skills.
