@@ -1,6 +1,6 @@
 {
   "name": "interstella",
-  "description": "General-purpose Claude Code skills: writing-skills (enhanced skill authoring), claude-md-improver (CLAUDE.md optimizer), product-bible (product vision docs), screenshot (webpage capture), wait-on-resources (service readiness checks)",
+  "description": "General-purpose Claude Code skills: creating-skills (skill authoring with Anthropic references), claude-md-improver (CLAUDE.md optimizer), product-bible (product vision docs), screenshot (webpage capture), wait-on-resources (service readiness checks)",
   "author": { "name": "interstella-5555" },
   "repository": "https://github.com/interstella-5555/interstella-claude-marketplace"
 }

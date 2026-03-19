@@ -1,6 +1,6 @@
 ---
 name: claude-md-improver
-description: Use when user asks to "optimize claude.md", "clean up claude.md", "review claude.md", "make claude.md shorter", "audit claude.md", or "/x-claude-md-improver". Enhanced version of claude-md-improver with framework-aware auditing, aggressive signal-to-noise optimization, and Anthropic-verified knowledge sources.
+description: Use when user asks to "optimize claude.md", "clean up claude.md", "review claude.md", "make claude.md shorter", "audit claude.md", or "/x-claude-md-improver".
 ---
 
 # X-Claude-MD-Improver

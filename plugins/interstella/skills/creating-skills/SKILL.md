@@ -1,19 +1,19 @@
 ---
-name: writing-skills
-description: Use when creating new skills, editing existing skills, or improving skill quality. Enhanced version of writing-skills with Anthropic's complete guide, best practices, and expert insights as local references.
+name: creating-skills
+description: Use when creating new skills, editing existing skills, or improving skill quality.
 ---
 
 # Writing Skills
 
 Enhanced skill-writing guide. Combines `superpowers:writing-skills` TDD methodology with Anthropic's official references and expert insights — all stored locally for deep consultation.
 
-**Announce at start:** "Using writing-skills — enhanced skill authoring with full Anthropic references."
+**Announce at start:** "Using creating-skills — skill authoring with full Anthropic references."
 
 ## Workflow
 
 1. **Read `superpowers:writing-skills`** for TDD methodology (RED-GREEN-REFACTOR), CSO, and skill structure
 2. **Consult this skill's references** (below) for deep guidance on specific aspects
-3. **Follow writing-skills checklist** for deployment
+3. **Follow `superpowers:writing-skills` checklist** for deployment
 
 ## When to Consult Which Reference
 
@@ -47,7 +47,7 @@ Context window is a public good. Only add context Claude doesn't already have. C
 - Include trigger phrases users would actually say
 - Write in third person
 - NEVER summarize the skill's workflow in the description (Claude will shortcut and skip the body)
-- Structure: `[When to use it] + [Trigger conditions] + [Key capabilities]`
+- Structure: `[When to use it] + [Trigger conditions]` (never summarize workflow or capabilities)
 
 ### 3. Progressive Disclosure (3 Levels)
 - **Level 1 (always loaded):** YAML frontmatter name + description

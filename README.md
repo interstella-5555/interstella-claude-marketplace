@@ -10,7 +10,7 @@ General-purpose Claude Code skills. Invoke as `/interstella:<skill-name>`.
 
 | Skill | Description |
 |---|---|
-| **writing-skills** | Enhanced skill authoring guide with Anthropic references and TDD methodology |
+| **creating-skills** | Skill authoring guide with Anthropic references and TDD methodology |
 | **claude-md-improver** | CLAUDE.md optimizer with framework-aware auditing and signal-to-noise optimization |
 | **product-bible** | Product vision/bible document guide with PMF, JTBD, and competitive positioning frameworks |
 | **screenshot** | Webpage/HTML screenshot capture via capture-website-cli |

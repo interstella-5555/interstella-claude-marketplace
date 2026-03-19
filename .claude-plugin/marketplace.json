@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "interstella",
-      "description": "General-purpose skills: writing-skills, claude-md-improver, product-bible, screenshot, wait-on-resources",
+      "description": "General-purpose skills: creating-skills, claude-md-improver, product-bible, screenshot, wait-on-resources",
       "source": "./plugins/interstella",
       "category": "productivity"
     },
