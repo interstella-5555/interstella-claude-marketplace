@@ -5,7 +5,7 @@
 After every `git push` to main, refresh the local marketplace and update the plugin:
 
 ```bash
-claude plugins marketplace update interstella-claude-marketplace && claude plugins update interstella-skills@interstella-claude-marketplace
+claude plugins marketplace update interstella-claude-marketplace && claude plugins update interstella@interstella-claude-marketplace
 ```
 
 Restart Claude Code session to apply changes.
@@ -15,7 +15,7 @@ Restart Claude Code session to apply changes.
 ### Structure
 
 ```
-plugins/interstella-skills/skills/{skill-name}/
+plugins/interstella/skills/{skill-name}/
 ├── SKILL.md
 └── references/          # optional, for large reference docs
     └── *.md
@@ -32,17 +32,17 @@ Example:
 ```yaml
 ---
 name: my-skill
-description: Use when user asks to do X. Covers Y and Z.
+description: Use when user asks to do X or mentions Y. Also triggers on "Z".
 ---
 ```
 
 ### Checklist
 
-1. Create `plugins/interstella-skills/skills/{skill-name}/SKILL.md`
+1. Create `plugins/interstella/skills/{skill-name}/SKILL.md`
 2. Add `references/` dir if skill has large reference docs (progressive disclosure)
 3. Update description in both manifests to include new skill name:
    - `.claude-plugin/marketplace.json` → `plugins[0].description`
-   - `plugins/interstella-skills/.claude-plugin/plugin.json` → `description`
+   - `plugins/interstella/.claude-plugin/plugin.json` → `description`
 4. Update `README.md` skills list
 5. Commit, push to main
 6. Run post-push refresh (see above)
@@ -59,5 +59,5 @@ When migrating from `~/.claude/skills/{name}/`:
 
 ## Known issues
 
-- **Skill detection bug ([#15178](https://github.com/anthropics/claude-code/issues/15178)):** Skills from custom marketplaces may not appear in `/plugin` UI "Installed components" list, but they load and work when invoked. Verify with `/interstella-skills:{skill-name}`.
+- **Skill detection bug ([#15178](https://github.com/anthropics/claude-code/issues/15178)):** Skills from custom marketplaces may not appear in `/plugin` UI "Installed components" list, but they load and work when invoked. Verify with `/interstella:{skill-name}`.
 - **Character budget:** If many plugins are installed, skills may be excluded from context. Check with `SLASH_COMMAND_TOOL_CHAR_BUDGET` env var if skills stop triggering.
