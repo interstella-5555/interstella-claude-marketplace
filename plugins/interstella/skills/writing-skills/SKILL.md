@@ -1,5 +1,5 @@
 ---
-name: x-writing-skills
+name: writing-skills
 description: Use when creating new skills, editing existing skills, or improving skill quality. Enhanced version of writing-skills with Anthropic's complete guide, best practices, and expert insights as local references.
 ---
 

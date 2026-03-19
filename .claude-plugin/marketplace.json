@@ -2,13 +2,20 @@
   "name": "interstella-claude-marketplace",
   "description": "Interstella's Claude Code plugin marketplace",
   "owner": { "name": "interstella-5555" },
-  "metadata": { "version": "1.0.0" },
+  "metadata": { "version": "2.0.0", "pluginRoot": "./plugins" },
   "plugins": [
     {
-      "name": "interstella-skills",
-      "description": "Enhanced Claude Code skills: writing-skills, claude-md-improver, wait-on-resources, product-bible, screenshot",
-      "source": "./plugins/interstella-skills",
+      "name": "interstella",
+      "description": "General-purpose skills: writing-skills, claude-md-improver, product-bible, screenshot, wait-on-resources",
+      "source": "./plugins/interstella",
       "category": "productivity"
+    },
+    {
+      "name": "github-identity-manager",
+      "description": "Multi-account GitHub SSH auth, commit signing, and gh CLI via 1Password",
+      "source": "./plugins/github-identity-manager",
+      "category": "developer-tools",
+      "keywords": ["github", "ssh", "1password", "git", "signing"]
     }
   ]
 }

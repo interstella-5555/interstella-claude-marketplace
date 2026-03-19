@@ -4,15 +4,25 @@ Private Claude Code plugin marketplace.
 
 ## Plugins
 
-### interstella-skills
+### interstella
 
-Enhanced Claude Code skills:
+General-purpose Claude Code skills. Invoke as `/interstella:<skill-name>`.
 
-- **x-writing-skills** — Enhanced skill authoring guide with Anthropic references
-- **x-claude-md-improver** — Enhanced CLAUDE.md optimizer with framework-aware auditing
-- **x-product-bible** — Product vision/bible document writing guide with PMF, JTBD, and competitive positioning frameworks
-- **screenshot** — Webpage/HTML screenshot capture via capture-website-cli
-- **wait-on-resources** — Wait for services/ports using wait-on instead of sleep/polling
+| Skill | Description |
+|---|---|
+| **writing-skills** | Enhanced skill authoring guide with Anthropic references and TDD methodology |
+| **claude-md-improver** | CLAUDE.md optimizer with framework-aware auditing and signal-to-noise optimization |
+| **product-bible** | Product vision/bible document guide with PMF, JTBD, and competitive positioning frameworks |
+| **screenshot** | Webpage/HTML screenshot capture via capture-website-cli |
+| **wait-on-resources** | Wait for services/ports using wait-on instead of sleep/polling |
+
+### github-identity-manager
+
+Multi-account GitHub identity management via 1Password. Invoke as `/github-identity-manager`.
+
+Set up or repair: SSH authentication, commit signing (Touch ID), and `gh` CLI — all with directory-based automatic account switching. Also works for single-account setups.
+
+[Setup guide (gist)](https://gist.github.com/interstella-5555/971f9111f58a67630e56d23e253814d9)
 
 ## Recommended Community Skills
 
