@@ -1,94 +1,104 @@
 ---
 name: github-identity-manager
-description: "Manual invocation only. Set up, repair, or modify multi-account GitHub identity management with 1Password. Configures git CLI (SSH auth + commit signing), gh CLI (per-directory account switching), and 1Password SSH agent — all with directory-based automatic account selection. Also works for single-account setups (signed commits + 1Password SSH). Use when user explicitly invokes this skill."
+description: "Manual invocation only. Set up, repair, or modify multi-account GitHub identity management. Two key backends: 1Password (keys in vault, Touch ID signing) or disk keys (keys in ~/.ssh/, passphrase in macOS Keychain, zero prompts). Configures git CLI (SSH auth + commit signing), gh CLI (per-directory account switching) — all with directory-based automatic account selection. Includes migration between backends. Use when user explicitly invokes this skill."
 ---
 
 # GitHub Identity Manager
 
-Manages GitHub identity: SSH auth, commit signing, and `gh` CLI — all via 1Password, with automatic directory-based account switching.
+Manages GitHub identity: SSH auth, commit signing, and `gh` CLI — with automatic directory-based account switching.
 
-**What this sets up:**
-- **`git` CLI** — SSH push/pull with the right key per directory, commits signed via 1Password Touch ID
-- **`gh` CLI** — automatically authenticated as the right GitHub account per directory
-- **1Password SSH agent** — private keys never leave 1Password, no keys on disk
-- **Directory-based switching** — `cd ~/work/` = work account, `cd ~/personal/` = personal account. Automatic, no manual switching.
+**Two key backends:**
 
-**macOS only.** Requires Git 2.36+ and 1Password 8+ with active subscription.
+| | 1Password | Disk Keys |
+|---|---|---|
+| Private keys | 1Password vault | `~/.ssh/` on disk |
+| SSH agent | 1Password SSH agent | macOS ssh-agent |
+| Commit signing | `op-ssh-sign` (Touch ID prompt) | `ssh-keygen` (silent, no prompt) |
+| Auth experience | Touch ID (configurable frequency) | Passphrase in macOS Keychain (zero prompts) |
+| Extra requirements | 1Password 8+ with subscription | None |
 
-Read `references/setup-guide.md` for the full technical reference.
+**Shared across both backends:**
+- `includeIf` directory-based git config switching
+- Per-account gitconfigs (user, email, signingkey)
+- `gpg.format = ssh` for commit signing
+- direnv for `gh` CLI auto-switching
+- All remotes use `git@github.com:`
+
+**macOS only.** Requires Git 2.36+.
+
+**Technical references (read on demand):**
+- `references/setup-guide.md` — 1Password setup (full step-by-step)
+- `references/disk-keys-guide.md` — Disk keys setup (full step-by-step)
+- `references/migration-guide.md` — Migration between backends
 
 ---
 
 ## On Start
 
-### Prerequisites check
+### Prerequisites check (common)
 
 ```bash
-git --version                   # Must be 2.36+
-which gh                        # Must be installed
-which direnv                    # Must be installed
-ls /Applications/1Password.app  # Must be installed
-ls /Applications/1Password.app/Contents/MacOS/op-ssh-sign  # Must exist
+git --version       # Must be 2.36+
+which gh            # Must be installed
+which direnv        # Must be installed
 ```
 
-- **git missing** → install: `brew install git`
-- **gh missing** → install: `brew install gh`
-- **direnv missing** → install: `brew install direnv` — then ensure shell hook is configured ([direnv setup](https://direnv.net/docs/hook.html))
-- **1Password missing** → tell user: "1Password 8+ with an active subscription is required. Install from https://1password.com/downloads/mac — I can't install it for you."
-- **op-ssh-sign missing** → 1Password too old or SSH agent not enabled. Guide user to enable it.
+- **git missing/old** → `brew install git`
+- **gh missing** → `brew install gh`
+- **direnv missing** → `brew install direnv` + shell hook ([direnv setup](https://direnv.net/docs/hook.html))
 
-### Single vs Multi account
-
-Run discovery:
+### Detect current backend
 
 ```bash
-# Check for multi-account signals
+# 1Password signals
+ls /Applications/1Password.app 2>/dev/null
+ls ~/.1password/agent.sock 2>/dev/null
+cat ~/.ssh/config 2>/dev/null | grep -i IdentityAgent
+
+# Disk key signals
+cat ~/.ssh/config 2>/dev/null | grep -i UseKeychain
+ls ~/.ssh/id_ed25519_* 2>/dev/null
+
+# Common signals
 cat ~/.gitconfig 2>/dev/null | grep -c includeIf
 gh auth status 2>&1 | grep -c "Logged in"
+cat ~/.gitconfig 2>/dev/null | grep -i "gpg.ssh.program\|op-ssh-sign"
 ```
 
-If **no multi-account setup detected**, explain:
-
-> "This skill manages your GitHub identity — SSH keys, commit signing, and CLI authentication — all through 1Password.
->
-> **Multi-account** (2+ GitHub accounts): Full setup with directory-based automatic switching. Your git and gh commands use the right account based on which folder you're in.
->
-> **Single account**: Simplified setup — signed commits via Touch ID, SSH through 1Password, gh authenticated. No directory switching needed.
->
-> How many GitHub accounts do you use?"
+Backend determination:
+- **IdentityAgent + op-ssh-sign** → 1Password backend
+- **UseKeychain + IdentityFile (no IdentityAgent)** → Disk keys backend
+- **Mixed/unclear** → ask user
+- **Neither** → new setup (will ask in Phase 1)
 
 ### Mode detection
 
-```bash
-ls ~/.1password/agent.sock 2>/dev/null
-cat ~/.ssh/config 2>/dev/null | grep -i IdentityAgent
-cat ~/.gitconfig 2>/dev/null | grep -i includeIf
-ls ~/.ssh/1password/*.pub 2>/dev/null
-git config --global commit.gpgsign 2>/dev/null
-gh auth status 2>&1
-```
-
-- **All signals present** → **Repair mode**
+- **All signals present** for detected backend → **Repair mode**
 - **Some or none** → **Setup mode** (partial = resume from where it broke)
-
-Also check if user mentioned a **specific task** (add account, change folder, change key, etc.) → handle that directly without full setup/repair.
+- **User mentions migration** → **Migration mode**
+- **User mentions specific task** (add account, change folder, etc.) → **Incremental change** (handle directly)
 
 ---
 
 ## Incremental Changes
 
-If user invokes with a specific request, handle it directly:
+If user invokes with a specific request, handle it directly.
 
 ### "Add a new GitHub account"
 
-1. Ask: account username, directory for repos, 1Password vault
-2. Create SSH key in 1Password (guide user)
-3. Save pub key to `~/.ssh/1password/<name>.pub`
-4. Add `includeIf` block to `~/.gitconfig`
-5. Create `~/.gitconfig-<name>` with user/signing/sshCommand
-6. Add vault to `agent.toml` if needed
+1. Ask: account username, directory for repos
+2. Ask: key name suffix (e.g. `github_work`) — explain it becomes part of the filename
+3. **1Password backend:**
+   - Guide user to create Ed25519 key in 1Password
+   - Save pub key to `~/.ssh/1password/<suffix>.pub`
+   - Add vault to `agent.toml` if needed
+4. **Disk keys backend:**
+   - `ssh-keygen -t ed25519 -C "<email>" -f ~/.ssh/id_ed25519_<suffix>`
+   - `ssh-add --apple-use-keychain ~/.ssh/id_ed25519_<suffix>`
+5. Add `includeIf` block to `~/.gitconfig`
+6. Create `~/.gitconfig-<suffix>` with user/signing/sshCommand for the detected backend
 7. `gh auth login` for the new account
-8. Add to `__auto_gh_account` in shell config
+8. Create `.envrc` in account directory
 9. Add key to GitHub (Authentication + Signing)
 10. Verify with test commit
 
@@ -96,15 +106,15 @@ If user invokes with a specific request, handle it directly:
 
 1. Ask: which account, old dir, new dir
 2. Update `includeIf "gitdir:..."` in `~/.gitconfig`
-3. Update `__auto_gh_account` case pattern in shell config
+3. Move `.envrc` to new directory (or update path)
 4. Verify
 
-### "My key changed in 1Password"
+### "My key changed" / "Regenerate key"
 
 1. Ask: which account
-2. Get new public key from user (copy from 1Password)
-3. Update `~/.ssh/1password/<name>.pub`
-4. Update `signingkey` in `~/.gitconfig-<name>`
+2. **1Password:** get new public key from user, update `~/.ssh/1password/<suffix>.pub`
+3. **Disk keys:** `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_<suffix>`, then `ssh-add --apple-use-keychain`
+4. Update `signingkey` in `~/.gitconfig-<suffix>`
 5. Update key on GitHub (remove old, add new — both Auth + Signing)
 6. Verify
 
@@ -112,35 +122,48 @@ If user invokes with a specific request, handle it directly:
 
 1. Ask: which account
 2. Remove `includeIf` block from `~/.gitconfig`
-3. Backup `~/.gitconfig-<name>` to `~/.ssh/backup/`
-4. Remove `.envrc` from the account's directory (or remove GH_TOKEN line if other vars present)
-5. `gh auth logout <account>`
-6. Tell user to remove key from GitHub manually
+3. Backup `~/.gitconfig-<suffix>` to `~/.ssh/backup/`
+4. **Disk keys:** backup private key to `~/.ssh/backup/`
+5. Remove `.envrc` from the account's directory
+6. `gh auth logout <account>`
+7. Tell user to remove key from GitHub manually
 
 ---
 
 ## Repair Mode
 
-Run these checks **in order**. Stop at first failure, report, ask to fix.
+Run checks **in order**. Stop at first failure, report, ask to fix.
 
 ### Check 1: Prerequisites
 ```bash
 git --version    # 2.36+
-ls /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 which gh
+which direnv
 ```
+**1Password only:** `ls /Applications/1Password.app/Contents/MacOS/op-ssh-sign`
 
-### Check 2: 1Password agent reachable
+### Check 2: SSH agent
+
+**1Password:**
 ```bash
 SSH_AUTH_SOCK=~/.1password/agent.sock ssh-add -l
 # Must list keys. Empty/error → agent not running or symlink broken
 ```
 
+**Disk keys:**
+```bash
+ssh-add -l
+# Must list keys. Empty → run ssh-add --apple-use-keychain for each key
+```
+
 ### Check 3: SSH config
+
+**1Password:** must have `IdentityAgent ~/.1password/agent.sock`, no stale Host aliases.
+
+**Disk keys:** must have `AddKeysToAgent yes` and `UseKeychain yes`. No `IdentityAgent`.
+
 ```bash
 cat ~/.ssh/config
-# Must: IdentityAgent ~/.1password/agent.sock
-# Should NOT: Host aliases for github, IdentityFile to private keys
 ```
 
 ### Check 4: Git directory switching
@@ -149,49 +172,70 @@ cat ~/.gitconfig | grep -A1 includeIf
 # Must have includeIf blocks for each account directory
 ```
 
-For each per-account gitconfig, verify:
+### Check 5: Per-account gitconfigs
+
+For each `~/.gitconfig-<suffix>`, verify:
+
+**Both backends:**
 - `[user]` name, email, signingkey
 - `[gpg] format = ssh`
-- `[gpg "ssh"] program = .../op-ssh-sign`
-- `[core] sshCommand = ssh -i ~/.ssh/1password/<name>.pub -o IdentitiesOnly=yes`
+- `[core] sshCommand` set with correct key path + `-o IdentitiesOnly=yes`
 
-### Check 5: Public keys match agent
+**1Password only:**
+- `[gpg "ssh"] program = .../op-ssh-sign`
+- `signingkey` is literal public key string
+- `sshCommand` uses `~/.ssh/1password/<suffix>.pub`
+
+**Disk keys only:**
+- No `gpg.ssh.program` (defaults to `ssh-keygen`)
+- `signingkey` is path to `.pub` file
+- `sshCommand` uses `~/.ssh/id_ed25519_<suffix>`
+
+### Check 6: Public keys match agent
+
+**1Password:**
 ```bash
-ssh-keygen -lf ~/.ssh/1password/<name>.pub   # per key
+ssh-keygen -lf ~/.ssh/1password/<suffix>.pub
 SSH_AUTH_SOCK=~/.1password/agent.sock ssh-add -l
 # Fingerprints must match
 ```
 
-### Check 6: SSH auth per account
+**Disk keys:**
+```bash
+ssh-keygen -lf ~/.ssh/id_ed25519_<suffix>.pub
+ssh-add -l
+# Fingerprints must match
+```
+
+### Check 7: SSH auth per account
+
 For each account, from a repo in the matching directory:
 ```bash
 ssh -T git@github.com 2>&1
 # Must show correct username
 ```
 
-### Check 7: Commit signing
-For each account, in a repo in the matching directory:
+### Check 8: Commit signing
+
+For each account:
 ```bash
 git commit --allow-empty -m "verify signing"
 git log --show-signature -1
-# Must show valid signature. 1Password Touch ID should prompt.
+# Must show valid signature
+# 1Password: Touch ID should prompt (unless authorize=unlock)
+# Disk keys: silent, no prompt
 ```
 
-### Check 8: gh CLI per account
+### Check 9: gh CLI per account
+
 For each account directory:
 ```bash
-cd ~/<directory>/some-repo
-gh auth status
+cd ~/<directory>/some-repo && gh auth status
 # Must show correct account
+cat ~/<directory>/.envrc | grep GH_TOKEN
 ```
 
-Also verify direnv `.envrc` files exist with GH_TOKEN:
-```bash
-cat ~/code/.envrc ~/work/.envrc 2>/dev/null | grep GH_TOKEN
-# Each account directory should have .envrc with: export GH_TOKEN=$(gh auth token --user <username>)
-```
-
-### Check 9: Remotes use SSH
+### Check 10: Remotes use SSH
 ```bash
 for dir in ~/<directory>/*/; do
   [ -d "$dir/.git" ] || continue
@@ -200,10 +244,6 @@ for dir in ~/<directory>/*/; do
 done
 # All should be git@github.com:... (not https://, not Host aliases)
 ```
-
-### Check 10: GitHub keys
-Can't verify programmatically. Ask:
-> "Have you added your SSH keys as **both** Authentication Key and Signing Key on each GitHub account? Check at https://github.com/settings/keys"
 
 ### Report
 
@@ -215,156 +255,160 @@ Summarize: what passed, what failed (with specific fix for each). Ask permission
 
 ### Phase 1: Discovery
 
-**Never assume — discover and ask:**
+**Never assume — discover and ask. One question at a time.**
 
 1. **How many GitHub accounts?** Username and purpose of each.
 
-2. **Where are repos?** Scan:
+2. **Key backend choice:**
+
+   > "How do you want to manage your SSH keys?
+   >
+   > 1. **1Password** — keys stored in 1Password vault, signing via Touch ID. Requires 1Password 8+.
+   > 2. **Disk keys** — keys in `~/.ssh/`, passphrase stored in macOS Keychain. Zero prompts after initial setup.
+   >
+   > Which one?"
+
+   **If 1Password chosen:** verify 1Password is installed + `op-ssh-sign` exists. If not, tell user to install.
+
+3. **Key name suffix:**
+
+   > "What suffix do you want for each account's SSH key files? This becomes part of the filename.
+   >
+   > Examples:
+   > - `github_interstella` → `~/.ssh/id_ed25519_github_interstella` (disk) or `~/.ssh/1password/github_interstella.pub` (1Password)
+   > - `personal` → `~/.ssh/id_ed25519_personal`
+   >
+   > The suffix is also used for the per-account git config file (`~/.gitconfig-<suffix>`).
+   >
+   > What suffix for each account?"
+
+4. **Where are repos?** Scan:
    ```bash
    find ~ -maxdepth 3 -name ".git" -type d 2>/dev/null | head -30
    ```
    Group by parent directory. If not separated by account, **propose** a layout (e.g. `~/work/`, `~/personal/`). **Never move repos without explicit per-repo confirmation.**
 
-3. **Existing SSH keys?**
+5. **Existing SSH keys?**
    ```bash
    ls -la ~/.ssh/*.pub ~/.ssh/**/*.pub 2>/dev/null
    cat ~/.ssh/config 2>/dev/null
-   SSH_AUTH_SOCK=~/.1password/agent.sock ssh-add -l 2>/dev/null
+   ssh-add -l 2>/dev/null
    ```
 
-4. **Existing signing/GPG?**
+6. **Existing signing/GPG?**
    ```bash
    git config --global gpg.format
    git config --global user.signingkey
-   grep -E "GPG_TTY|gpg" ~/.zshrc ~/.bashrc 2>/dev/null
-   which gpg 2>/dev/null
+   git config --global gpg.ssh.program
    ```
 
-5. **1Password SSH keys?** Ask:
+7. **1Password SSH keys?** (only if 1Password backend)
    > "Do you have SSH keys in 1Password for GitHub already? If yes, tell me their names. If not, I'll guide you through creating them."
 
-6. **1Password vaults?** Ask:
+8. **1Password vaults?** (only if 1Password backend)
    > "Are your SSH keys all in the same 1Password vault, or different vaults?"
 
-7. **gh CLI status?**
+9. **gh CLI status?**
    ```bash
    gh auth status 2>&1
    ```
 
-8. **Non-GitHub SSH usage?** Ask:
-   > "Do you use SSH keys for anything other than GitHub? (VPS, servers, other git hosting) — I need to know so I don't break those connections."
+10. **Non-GitHub SSH usage?**
+    > "Do you use SSH keys for anything other than GitHub? (VPS, servers, other git hosting) — I need to know so I don't break those connections."
 
 ### Phase 2: Present Plan
 
-Before touching anything:
+Before touching anything, show what will be created/modified. Adapt to chosen backend:
 
-> "Here's what I'll set up:
->
-> **Tools:** `git` (SSH auth + signed commits) + `gh` (CLI per account) + 1Password (SSH agent + Touch ID signing)
->
-> **Files I'll create/modify:**
-> - `~/.ssh/config` — 1Password agent for all SSH connections
-> - `~/.gitconfig` — directory-based account switching (`includeIf`)
-> - `~/.gitconfig-<name>` per account — SSH key, signing, identity
-> - `~/.ssh/1password/<name>.pub` — public keys for key selection
-> - `~/.config/1Password/ssh/agent.toml` — enable vaults
-> - `<directory>/.envrc` per account — direnv `gh` CLI auto-switching
->
-> **You'll need to do manually:**
-> - Create SSH keys in 1Password (I'll guide you)
-> - Add keys to GitHub as Authentication + Signing keys
-> - `gh auth login` for each account (I'll prompt you when)
->
-> **I won't touch:**
-> - Existing SSH keys used for non-GitHub purposes
-> - Your repos (no moving without permission)
->
-> Ready?"
+**Both backends:**
+- `~/.ssh/config` — SSH agent/keychain configuration
+- `~/.gitconfig` — directory-based account switching (`includeIf`)
+- `~/.gitconfig-<suffix>` per account — SSH key, signing, identity
+- `<directory>/.envrc` per account — direnv `gh` CLI auto-switching
+
+**1Password only:**
+- `~/.ssh/1password/<suffix>.pub` — public keys for key selection
+- `~/.config/1Password/ssh/agent.toml` — vault configuration
+
+**Disk keys only:**
+- `~/.ssh/id_ed25519_<suffix>` + `.pub` per account — key pairs on disk
+
+**User must do manually:**
+- **1Password:** Create SSH keys in 1Password (guided)
+- **Both:** Add keys to GitHub as Authentication + Signing keys
+- **Both:** `gh auth login` for each account (prompted when)
+
+Ask for confirmation before proceeding.
 
 ### Phase 3: Execute
 
-Follow `references/setup-guide.md`. For each step: explain → do → verify → next.
+Follow the appropriate reference guide. For each step: explain → do → verify → next.
 
-#### 3a: 1Password SSH keys
-Guide user through creating Ed25519 keys in 1Password. Verify agent sees them.
+**1Password backend** → follow `references/setup-guide.md`
 
-#### 3b: Agent symlink + config
-```bash
-mkdir -p ~/.1password
-ln -s "$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock" ~/.1password/agent.sock
-```
-Update `~/.config/1Password/ssh/agent.toml` for additional vaults.
+**Disk keys backend** → follow `references/disk-keys-guide.md`
 
-#### 3c: SSH config
-Write `~/.ssh/config` with `IdentityAgent ~/.1password/agent.sock`.
+**Both backends share these steps:**
+- Git config (`includeIf` + per-account configs)
+- gh CLI setup (direnv + `.envrc`)
+- Add keys to GitHub (Auth + Signing)
+- Fix HTTPS/Host-alias remotes
 
-#### 3d: Public keys to disk
-```bash
-mkdir -p ~/.ssh/1password
-echo "<pub-key>" > ~/.ssh/1password/<name>.pub
-```
-
-#### 3e: Git config
-- `~/.gitconfig` — global settings + `includeIf` blocks
-- `~/.gitconfig-<name>` per account — user, signing, sshCommand
-
-**For single-account setup:** skip `includeIf`, put everything in `~/.gitconfig` directly.
-
-#### 3f: gh CLI setup
-
-Install direnv if not present:
-```bash
-which direnv || brew install direnv
-```
-
-Ensure direnv hook is in shell config (check `~/.zshrc` for `eval "$(direnv hook zsh)"` or `plugins=(direnv)` in oh-my-zsh).
-
-For each account, `gh auth login`:
-```bash
-gh auth login
-# Interactive: GitHub.com → SSH → select key → authenticate in browser
-```
-
-Then create direnv `.envrc` in each account's root directory:
-
-```bash
-# ~/work/.envrc
-echo 'export GH_TOKEN=$(gh auth token --user <work-username>)' > ~/work/.envrc
-direnv allow ~/work/.envrc
-
-# ~/personal/.envrc
-echo 'export GH_TOKEN=$(gh auth token --user <personal-username>)' > ~/personal/.envrc
-direnv allow ~/personal/.envrc
-```
-
-`gh auth token --user <name>` reads the stored OAuth token from macOS Keychain ([gh environment docs](https://cli.github.com/manual/gh_help_environment)). direnv loads `.envrc` from parent directories automatically — one file per account covers all repos in that directory.
-
-**For single-account setup:** skip direnv, just `gh auth login` once.
-
-#### 3g: GitHub keys
-Guide user to add each key as both Authentication + Signing key on GitHub.
-
-#### 3h: Fix remotes
-Scan for HTTPS and Host alias remotes. Ask before converting:
-> "Found X repos using HTTPS and Y using Host aliases. Convert them all to `git@github.com:...`?"
+**For single-account setup:** skip `includeIf`, put everything in `~/.gitconfig` directly. Skip direnv.
 
 ### Phase 4: Verify
 
-Run all Repair Mode checks (1-10). Everything should pass.
+Run all Repair Mode checks (1-10) for the chosen backend. Everything should pass.
 
 ### Phase 5: Cleanup
 
-If old infrastructure found:
+If old infrastructure found (from previous setup or other backend):
 
 > "I found remnants of a previous setup:
-> - [list: GPG, old keys, GPG_TTY, Host aliases, etc.]
+> - [list: GPG, old keys, GPG_TTY, Host aliases, 1Password config, etc.]
 >
-> 1Password now handles everything. Want me to clean these up?"
+> Want me to clean these up?"
 
-**SSH keys:** backup to `~/.ssh/backup/` (never delete). After everything works:
+**SSH keys:** backup to `~/.ssh/backup/` (never delete):
 > "Old keys backed up to `~/.ssh/backup/`. To remove permanently: `trash ~/.ssh/backup/` (moves to macOS Trash — still recoverable). Keys used for non-GitHub purposes were NOT touched."
 
-**GitHub keys:** tell user to manually review at https://github.com/settings/keys — delete old GPG keys, old SSH auth keys, and old SSH signing keys that are no longer needed. **Do this for each account.**
+**GitHub keys:** tell user to manually review at https://github.com/settings/keys — for each account.
+
+---
+
+## Migration Mode
+
+When user wants to switch backends. Read `references/migration-guide.md` for technical details.
+
+### 1Password → Disk Keys
+
+1. **Cannot export private keys from 1Password** — must generate new keys
+2. Generate new disk keys with user's chosen suffix
+3. Add new keys to macOS Keychain (`ssh-add --apple-use-keychain`)
+4. Add new keys to GitHub (keep old 1Password keys active during transition)
+5. Update `~/.ssh/config` — replace `IdentityAgent` with `AddKeysToAgent yes` + `UseKeychain yes`
+6. Update per-account gitconfigs — remove `op-ssh-sign`, update paths
+7. Verify everything works
+8. Remove old 1Password keys from GitHub
+9. Clean up 1Password SSH config (agent.toml, symlink)
+
+### Disk Keys → 1Password
+
+1. Guide user to create Ed25519 keys in 1Password
+2. Enable 1Password SSH agent + configure `agent.toml`
+3. Save public keys to `~/.ssh/1password/<suffix>.pub`
+4. Add new keys to GitHub (keep old disk keys active during transition)
+5. Update `~/.ssh/config` — replace `UseKeychain`/`AddKeysToAgent` with `IdentityAgent`
+6. Update per-account gitconfigs — add `op-ssh-sign`, update paths
+7. Verify everything works
+8. Remove old disk keys from GitHub
+9. Backup old disk keys to `~/.ssh/backup/`
+
+### During migration
+
+- **Both key sets active on GitHub** simultaneously — zero downtime
+- Test thoroughly before removing old keys
+- If anything breaks, old keys still work as fallback
 
 ---
 
@@ -374,7 +418,8 @@ If old infrastructure found:
 - **Never delete private keys** — `mv` to backup, suggest `trash` for permanent removal
 - **Never move repos** without per-repo confirmation
 - **Always verify after each step**
-- **Ask about non-GitHub SSH usage** before touching any key
+- **Ask about non-GitHub SSH usage** before touching any key or SSH config
 - **One question at a time**
 - **Show don't tell** — run commands to discover, don't ask user to describe
 - **`trash` over `rm`** — always mention it moves to macOS Trash (recoverable)
+- **Key suffix is user's choice** — always ask, suggest based on account names, never assume

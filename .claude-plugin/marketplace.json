@@ -12,7 +12,7 @@
     },
     {
       "name": "github-identity-manager",
-      "description": "Multi-account GitHub SSH auth, commit signing, and gh CLI via 1Password",
+      "description": "Multi-account GitHub SSH auth, commit signing, and gh CLI — 1Password or disk keys with migration",
       "source": "./plugins/github-identity-manager",
       "category": "developer-tools",
       "keywords": ["github", "ssh", "1password", "git", "signing"]

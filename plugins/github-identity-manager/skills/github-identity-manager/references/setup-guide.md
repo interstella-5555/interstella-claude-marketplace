@@ -62,10 +62,14 @@ If your SSH keys are in different vaults (e.g. "Private" and "Work"), edit the a
 ```toml
 [[ssh-keys]]
 vault = "Private"
+authorize = "unlock"
 
 [[ssh-keys]]
 vault = "Work"
+authorize = "unlock"
 ```
+
+> **`authorize = "unlock"`** means the agent signs automatically as long as 1Password is unlocked — no Touch ID prompt per operation. The default (`"ask"`) prompts for biometric auth on every SSH and signing operation, which is disruptive during development. With `"unlock"`, you authenticate once when unlocking 1Password and that's it.
 
 Ref: [1Password — SSH agent config file](https://developer.1password.com/docs/ssh/agent/config/)
 
