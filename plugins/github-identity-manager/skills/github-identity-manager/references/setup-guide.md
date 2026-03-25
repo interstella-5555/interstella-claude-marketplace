@@ -96,13 +96,13 @@ SSH_AUTH_SOCK=~/.1password/agent.sock ssh-add -l
 Git's [`core.sshCommand`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coresshCommand) needs a public key file to tell the 1Password agent which key to offer. The agent matches by public key fingerprint and handles the private key internally.
 
 ```bash
-mkdir -p ~/.ssh/1password
-
 # Copy public key from 1Password for each account
 # (1Password → select key → Cmd+C copies public key)
-echo "ssh-ed25519 AAAA...your-personal-key..." > ~/.ssh/1password/personal.pub
-echo "ssh-ed25519 AAAA...your-work-key..." > ~/.ssh/1password/work.pub
+echo "ssh-ed25519 AAAA...your-personal-key..." > ~/.ssh/personal_1p.pub
+echo "ssh-ed25519 AAAA...your-work-key..." > ~/.ssh/work_1p.pub
 ```
+
+> **Warning:** Do NOT store public keys in `~/.ssh/1password/` — 1Password manages that directory and may delete it at any time (e.g. when toggling SSH Bookmarks or during updates). Keep keys directly in `~/.ssh/` with a `_1p` suffix instead.
 
 > **Note:** These are public keys — not secrets. They never change (derived mathematically from the private key). Safe to keep on disk.
 
@@ -165,7 +165,7 @@ Ref: [Git — Conditional Includes (`includeIf`)](https://git-scm.com/docs/git-c
 [gpg "ssh"]
     program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 [core]
-    sshCommand = ssh -i ~/.ssh/1password/personal.pub -o IdentitiesOnly=yes
+    sshCommand = ssh -i ~/.ssh/personal_1p.pub -o IdentitiesOnly=yes
 ```
 
 **File: `~/.gitconfig-work`**
@@ -180,7 +180,7 @@ Ref: [Git — Conditional Includes (`includeIf`)](https://git-scm.com/docs/git-c
 [gpg "ssh"]
     program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 [core]
-    sshCommand = ssh -i ~/.ssh/1password/work.pub -o IdentitiesOnly=yes
+    sshCommand = ssh -i ~/.ssh/work_1p.pub -o IdentitiesOnly=yes
 ```
 
 ### How it works

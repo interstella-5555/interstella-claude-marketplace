@@ -262,7 +262,7 @@ After switching to disk keys, you can remove infrastructure from a previous setu
 
 - **1Password SSH agent config** — remove `IdentityAgent` from `~/.ssh/config`, remove `~/.1password/agent.sock` symlink
 - **1Password agent.toml** — `~/.config/1Password/ssh/agent.toml` (can leave if still using 1Password for other things)
-- **1Password public keys** — `~/.ssh/1password/` directory
+- **1Password public keys** — `~/.ssh/*_1p.pub` files
 - **op-ssh-sign references** — remove `gpg.ssh.program` from any gitconfig files
 - **GPG installation** — `brew uninstall gnupg` if only used for git signing
 - **GPG data** — `rm -rf ~/.gnupg`

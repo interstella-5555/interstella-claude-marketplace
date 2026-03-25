@@ -99,7 +99,7 @@ After:
 Before:
 ```ini
 [core]
-    sshCommand = ssh -i ~/.ssh/1password/<suffix>.pub -o IdentitiesOnly=yes
+    sshCommand = ssh -i ~/.ssh/<suffix>_1p.pub -o IdentitiesOnly=yes
 ```
 
 After:
@@ -137,8 +137,8 @@ Only after everything works:
 #### 8. Clean up (optional)
 
 ```bash
-# Remove 1Password public keys directory
-trash ~/.ssh/1password
+# Remove 1Password public key files
+trash ~/.ssh/*_1p.pub
 
 # Remove agent symlink
 trash ~/.1password/agent.sock
@@ -201,10 +201,11 @@ SSH_AUTH_SOCK=~/.1password/agent.sock ssh-add -l
 #### 3. Save public keys to disk
 
 ```bash
-mkdir -p ~/.ssh/1password
 # Copy public key from 1Password (select key → Cmd+C) for each account:
-echo "ssh-ed25519 AAAA...key..." > ~/.ssh/1password/<suffix>.pub
+echo "ssh-ed25519 AAAA...key..." > ~/.ssh/<suffix>_1p.pub
 ```
+
+> **Warning:** Do NOT store public keys in `~/.ssh/1password/` — 1Password manages that directory and may delete it at any time.
 
 #### 4. Add new keys to GitHub
 
@@ -260,7 +261,7 @@ Before:
 After:
 ```ini
 [core]
-    sshCommand = ssh -i ~/.ssh/1password/<suffix>.pub -o IdentitiesOnly=yes
+    sshCommand = ssh -i ~/.ssh/<suffix>_1p.pub -o IdentitiesOnly=yes
 ```
 
 Note: with 1Password, `sshCommand` uses the `.pub` file. The agent matches by fingerprint and handles the private key internally.

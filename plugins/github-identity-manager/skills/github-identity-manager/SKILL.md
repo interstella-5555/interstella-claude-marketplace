@@ -90,7 +90,7 @@ If user invokes with a specific request, handle it directly.
 2. Ask: key name suffix (e.g. `github_work`) — explain it becomes part of the filename
 3. **1Password backend:**
    - Guide user to create Ed25519 key in 1Password
-   - Save pub key to `~/.ssh/1password/<suffix>.pub`
+   - Save pub key to `~/.ssh/<suffix>_1p.pub`
    - Add vault to `agent.toml` if needed
 4. **Disk keys backend:**
    - `ssh-keygen -t ed25519 -C "<email>" -f ~/.ssh/id_ed25519_<suffix>`
@@ -112,7 +112,7 @@ If user invokes with a specific request, handle it directly.
 ### "My key changed" / "Regenerate key"
 
 1. Ask: which account
-2. **1Password:** get new public key from user, update `~/.ssh/1password/<suffix>.pub`
+2. **1Password:** get new public key from user, update `~/.ssh/<suffix>_1p.pub`
 3. **Disk keys:** `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_<suffix>`, then `ssh-add --apple-use-keychain`
 4. Update `signingkey` in `~/.gitconfig-<suffix>`
 5. Update key on GitHub (remove old, add new — both Auth + Signing)
@@ -184,7 +184,7 @@ For each `~/.gitconfig-<suffix>`, verify:
 **1Password only:**
 - `[gpg "ssh"] program = .../op-ssh-sign`
 - `signingkey` is literal public key string
-- `sshCommand` uses `~/.ssh/1password/<suffix>.pub`
+- `sshCommand` uses `~/.ssh/<suffix>_1p.pub`
 
 **Disk keys only:**
 - No `gpg.ssh.program` (defaults to `ssh-keygen`)
@@ -195,7 +195,7 @@ For each `~/.gitconfig-<suffix>`, verify:
 
 **1Password:**
 ```bash
-ssh-keygen -lf ~/.ssh/1password/<suffix>.pub
+ssh-keygen -lf ~/.ssh/<suffix>_1p.pub
 SSH_AUTH_SOCK=~/.1password/agent.sock ssh-add -l
 # Fingerprints must match
 ```
@@ -275,7 +275,7 @@ Summarize: what passed, what failed (with specific fix for each). Ask permission
    > "What suffix do you want for each account's SSH key files? This becomes part of the filename.
    >
    > Examples:
-   > - `github_interstella` → `~/.ssh/id_ed25519_github_interstella` (disk) or `~/.ssh/1password/github_interstella.pub` (1Password)
+   > - `github_interstella` → `~/.ssh/id_ed25519_github_interstella` (disk) or `~/.ssh/github_interstella_1p.pub` (1Password)
    > - `personal` → `~/.ssh/id_ed25519_personal`
    >
    > The suffix is also used for the per-account git config file (`~/.gitconfig-<suffix>`).
@@ -327,7 +327,7 @@ Before touching anything, show what will be created/modified. Adapt to chosen ba
 - `<directory>/.envrc` per account — direnv `gh` CLI auto-switching
 
 **1Password only:**
-- `~/.ssh/1password/<suffix>.pub` — public keys for key selection
+- `~/.ssh/<suffix>_1p.pub` — public keys for key selection
 - `~/.config/1Password/ssh/agent.toml` — vault configuration
 
 **Disk keys only:**
@@ -396,7 +396,7 @@ When user wants to switch backends. Read `references/migration-guide.md` for tec
 
 1. Guide user to create Ed25519 keys in 1Password
 2. Enable 1Password SSH agent + configure `agent.toml`
-3. Save public keys to `~/.ssh/1password/<suffix>.pub`
+3. Save public keys to `~/.ssh/<suffix>_1p.pub`
 4. Add new keys to GitHub (keep old disk keys active during transition)
 5. Update `~/.ssh/config` — replace `UseKeychain`/`AddKeysToAgent` with `IdentityAgent`
 6. Update per-account gitconfigs — add `op-ssh-sign`, update paths
