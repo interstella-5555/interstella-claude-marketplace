@@ -2,6 +2,36 @@
 
 Private Claude Code plugin marketplace.
 
+## Installation
+
+### 1. Add the marketplace
+
+```bash
+claude plugins marketplace add interstella-claude-marketplace https://github.com/interstella-5555/interstella-claude-marketplace
+```
+
+### 2. Install a plugin
+
+```bash
+# Install the interstella plugin (general-purpose skills)
+claude plugins install interstella@interstella-claude-marketplace
+
+# Install github-identity-manager
+claude plugins install github-identity-manager@interstella-claude-marketplace
+```
+
+### 3. Restart Claude Code
+
+Skills load on session start. After installing, restart Claude Code to make them available.
+
+### Updating
+
+```bash
+claude plugins marketplace update interstella-claude-marketplace
+claude plugins update interstella@interstella-claude-marketplace
+claude plugins update github-identity-manager@interstella-claude-marketplace
+```
+
 ## Plugins
 
 ### interstella
