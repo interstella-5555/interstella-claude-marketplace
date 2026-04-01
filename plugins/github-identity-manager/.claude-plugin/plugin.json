@@ -1,7 +1,7 @@
 {
   "name": "github-identity-manager",
-  "description": "Set up and manage multi-account GitHub identity: SSH auth, commit signing, and gh CLI — with directory-based automatic account switching. Two backends: 1Password (vault + Touch ID) or disk keys (macOS Keychain, zero prompts). Includes migration between backends.",
+  "description": "Set up and manage multi-account GitHub identity: SSH auth, commit signing, and gh CLI — with directory-based automatic account switching. Keys in ~/.ssh/, passphrase in macOS Keychain, zero prompts.",
   "author": { "name": "interstella-5555" },
   "repository": "https://github.com/interstella-5555/interstella-claude-marketplace",
-  "keywords": ["github", "ssh", "1password", "git", "signing", "multi-account", "keychain", "migration"]
+  "keywords": ["github", "ssh", "git", "signing", "multi-account", "keychain"]
 }

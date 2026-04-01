@@ -1,132 +1,112 @@
-# Multi-Account GitHub SSH + Commit Signing with 1Password
+# Multi-Account GitHub SSH + Commit Signing — Setup Guide
 
 Complete guide for setting up multiple GitHub accounts on one machine with:
-- **SSH authentication** via 1Password SSH agent (no keys on disk)
-- **Commit signing** via 1Password `op-ssh-sign` (Touch ID)
+- **SSH authentication** via on-disk keys + macOS ssh-agent
+- **Commit signing** via SSH keys (Git 2.34+ native `ssh-keygen`, no external tools)
 - **Automatic account switching** based on directory (`~/work/` vs `~/personal/`)
-- **No Host aliases** — everything uses `github.com`
+- **Passphrase in macOS Keychain** — enter once during setup, never again
 
-> **For Claude Code / AI assistants:** This document is a complete setup guide. If the user asks you to set this up, follow each section in order. Adapt directory paths and account names to the user's setup. If they don't have separate directories per GitHub account, suggest creating them first (e.g. `~/work/` and `~/personal/`).
+> **For Claude Code / AI assistants:** This document is the complete setup guide. Follow each section in order. Adapt directory paths, account names, and key suffixes to the user's setup.
 
 ---
 
 ## Prerequisites
 
-- macOS (tested on macOS 15+)
-- [1Password 8+](https://1password.com/downloads/mac) with SSH agent enabled
-- [Git 2.36+](https://git-scm.com/) (for `includeIf` and `core.sshCommand` support)
-- [GitHub CLI](https://cli.github.com/) (`gh`) — optional, for automation
+- macOS
+- [Git 2.36+](https://git-scm.com/) (for `includeIf` + `core.sshCommand`)
+- [GitHub CLI](https://cli.github.com/) (`gh`) — optional, for `gh` CLI switching
+- [direnv](https://direnv.net/) — for automatic `gh` CLI account switching
 - Two (or more) GitHub accounts
 
 ### Verify git version
 
 ```bash
 git --version
-# Needs 2.36+ for core.sshCommand with includeIf
+# Needs 2.36+
 ```
 
 ---
 
-## Step 1: Generate SSH keys in 1Password
+## Step 1: Generate SSH keys
 
-For **each** GitHub account, create a dedicated SSH key in 1Password:
-
-1. Open 1Password → **New Item** → **SSH Key**
-2. **Generate New Key** → **Ed25519**
-3. Name it clearly: `GitHub <AccountName>` (e.g. `GitHub Personal`, `GitHub Work`)
-4. Save
-
-> **Important:** Note which 1Password vault each key lives in. Keys in vaults other than "Private" need explicit configuration in Step 3.
-
-Ref: [1Password — Manage SSH Keys](https://developer.1password.com/docs/ssh/manage-keys/)
-
----
-
-## Step 2: Enable 1Password SSH agent
-
-1. Open 1Password → **Settings** → **Developer**
-2. Click **Set Up SSH Agent**
-3. Enable **Display key names when authorizing connections** (helps identify which key is being used)
-4. Under **General** → enable **Keep 1Password in the menu bar** and **Start at login**
-
-Ref: [1Password — Turn on the SSH agent](https://developer.1password.com/docs/ssh/get-started/#step-3-turn-on-the-1password-ssh-agent)
-
----
-
-## Step 3: Configure 1Password agent for multiple vaults
-
-If your SSH keys are in different vaults (e.g. "Private" and "Work"), edit the agent config:
-
-**File: `~/.config/1Password/ssh/agent.toml`**
-
-```toml
-[[ssh-keys]]
-vault = "Private"
-authorize = "unlock"
-
-[[ssh-keys]]
-vault = "Work"
-authorize = "unlock"
-```
-
-> **`authorize = "unlock"`** means the agent signs automatically as long as 1Password is unlocked — no Touch ID prompt per operation. The default (`"ask"`) prompts for biometric auth on every SSH and signing operation, which is disruptive during development. With `"unlock"`, you authenticate once when unlocking 1Password and that's it.
-
-Ref: [1Password — SSH agent config file](https://developer.1password.com/docs/ssh/agent/config/)
-
-Create the recommended symlink for a cleaner agent socket path ([1Password — Configure your SSH client](https://developer.1password.com/docs/ssh/get-started/#step-4-configure-your-ssh-or-git-client)):
+For **each** GitHub account, generate an Ed25519 key pair with a descriptive suffix:
 
 ```bash
-mkdir -p ~/.1password
-ln -s "$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock" ~/.1password/agent.sock
+ssh-keygen -t ed25519 -C "<email>" -f ~/.ssh/id_ed25519_<suffix>
+# Enter a passphrase when prompted — this encrypts the private key on disk
 ```
 
-> The `2BUA8C4S2C.com.1password` path is Apple's [macOS App Group Container](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_application-groups) identifier for 1Password. The symlink is [recommended by 1Password](https://developer.1password.com/docs/ssh/get-started/#step-4-configure-your-ssh-or-git-client) for convenience.
+> **This command is interactive** — it prompts for a passphrase. In Claude Code, tell the user to run it with `!` prefix.
 
-Verify the agent sees all keys:
+> **Email must match GitHub account.** The `-C` email, `user.email` in gitconfig (Step 4), and the email on the GitHub account must all be the same — otherwise commits show as "Unverified". For privacy, use GitHub's noreply alias from [github.com/settings/emails](https://github.com/settings/emails): `<id>+<username>@users.noreply.github.com`.
+
+The `<suffix>` is the user's choice. Examples:
 
 ```bash
-SSH_AUTH_SOCK=~/.1password/agent.sock ssh-add -l
-# Should list all your GitHub SSH keys
+# Account: interstella-5555, suffix: github_interstella
+ssh-keygen -t ed25519 -C "karol@interstella.com" -f ~/.ssh/id_ed25519_github_interstella
+
+# Account: paz-ts, suffix: github_thorswap
+ssh-keygen -t ed25519 -C "karol@thorswap.com" -f ~/.ssh/id_ed25519_github_thorswap
 ```
+
+This creates two files per key:
+- `~/.ssh/id_ed25519_<suffix>` — private key (encrypted with passphrase)
+- `~/.ssh/id_ed25519_<suffix>.pub` — public key (not secret, safe to share)
+
+Ref: [ssh-keygen(1) man page](https://man.openbsd.org/ssh-keygen)
 
 ---
 
-## Step 4: Save public keys to disk
+## Step 2: Add keys to macOS Keychain
 
-Git's [`core.sshCommand`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coresshCommand) needs a public key file to tell the 1Password agent which key to offer. The agent matches by public key fingerprint and handles the private key internally.
+Store the passphrase in macOS Keychain so you never need to type it again:
 
 ```bash
-# Copy public key from 1Password for each account
-# (1Password → select key → Cmd+C copies public key)
-echo "ssh-ed25519 AAAA...your-personal-key..." > ~/.ssh/personal_1p.pub
-echo "ssh-ed25519 AAAA...your-work-key..." > ~/.ssh/work_1p.pub
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519_github_interstella
+# Enter passphrase from Step 1 — Keychain stores it permanently
+
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519_github_thorswap
+# Enter passphrase from Step 1 — Keychain stores it permanently
 ```
 
-> **Warning:** Do NOT store public keys in `~/.ssh/1password/` — 1Password manages that directory and may delete it at any time (e.g. when toggling SSH Bookmarks or during updates). Keep keys directly in `~/.ssh/` with a `_1p` suffix instead.
+> **This command is interactive** — it prompts for the passphrase. In Claude Code, tell the user to run it with `!` prefix.
 
-> **Note:** These are public keys — not secrets. They never change (derived mathematically from the private key). Safe to keep on disk.
+Verify keys are loaded:
 
-How this works with the SSH agent: when `ssh -i path/to/key.pub` is used and an agent is active, [OpenSSH reads the public key from the file and asks the agent to sign with the matching private key](https://man.openbsd.org/ssh#-i). The private key never leaves 1Password.
+```bash
+ssh-add -l
+# Should list both keys with their fingerprints
+```
+
+The [`--apple-use-keychain`](https://developer.apple.com/library/archive/technotes/tn2449/_index.html) flag (macOS-specific) tells `ssh-add` to store the passphrase in the system Keychain. The Keychain is unlocked when you log into your Mac, so the passphrase is available automatically without any prompts.
 
 ---
 
-## Step 5: Configure SSH
+## Step 3: Configure SSH
 
 **File: `~/.ssh/config`** ([`ssh_config(5)` man page](https://man.openbsd.org/ssh_config))
 
 ```
-# 1Password SSH agent — all connections use this
 Host *
-  IdentityAgent ~/.1password/agent.sock
+  AddKeysToAgent yes
+  UseKeychain yes
 ```
 
-That's it. No Host aliases, no per-host IdentityFile. Git handles key selection via `core.sshCommand` (next step).
+**If `~/.ssh/config` already exists** with a `Host *` block: add `AddKeysToAgent yes` and `UseKeychain yes` into the existing block — don't create a duplicate `Host *`. If it has conflicting values (e.g. `AddKeysToAgent no`), change them. Leave other `Host` blocks (VPS, servers) untouched.
 
-The [`IdentityAgent`](https://man.openbsd.org/ssh_config#IdentityAgent) directive tells SSH which agent socket to use, overriding `SSH_AUTH_SOCK`. This is the [method recommended by 1Password](https://developer.1password.com/docs/ssh/get-started/#step-4-configure-your-ssh-or-git-client).
+**If `~/.ssh/config` doesn't exist:** create it with the content above.
+
+That's it. No per-host blocks, no IdentityFile directives here. Git handles key selection via `core.sshCommand` (next step).
+
+- [`AddKeysToAgent yes`](https://man.openbsd.org/ssh_config#AddKeysToAgent) — automatically adds keys to the running agent after first authentication
+- [`UseKeychain yes`](https://developer.apple.com/library/archive/technotes/tn2449/_index.html) — reads/stores passphrases from macOS Keychain (macOS-specific extension)
+
+Together, these mean: the ssh-agent always has your keys loaded, passphrases come from Keychain, and you never see a prompt.
 
 ---
 
-## Step 6: Configure Git
+## Step 4: Configure Git
 
 ### Global config
 
@@ -143,72 +123,108 @@ The [`IdentityAgent`](https://man.openbsd.org/ssh_config#IdentityAgent) directiv
     ff = only
 
 # Directory-based account switching
-[includeIf "gitdir:~/personal/"]
-    path = ~/.gitconfig-personal
-[includeIf "gitdir:~/work/"]
-    path = ~/.gitconfig-work
+[includeIf "gitdir:~/code/"]
+    path = ~/.gitconfig-github_interstella
+[includeIf "gitdir:~/thorswap/"]
+    path = ~/.gitconfig-github_thorswap
 ```
 
 Ref: [Git — Conditional Includes (`includeIf`)](https://git-scm.com/docs/git-config#_conditional_includes)
 
 ### Per-account configs
 
-**File: `~/.gitconfig-personal`**
+**File: `~/.gitconfig-github_interstella`**
 
 ```ini
 [user]
     name = Your Name
-    email = your-personal-github-noreply@users.noreply.github.com
-    signingkey = ssh-ed25519 AAAA...your-personal-key...
+    email = your-noreply@users.noreply.github.com
+    signingkey = ~/.ssh/id_ed25519_github_interstella.pub
 [gpg]
     format = ssh
-[gpg "ssh"]
-    program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 [core]
-    sshCommand = ssh -i ~/.ssh/personal_1p.pub -o IdentitiesOnly=yes
+    sshCommand = ssh -i ~/.ssh/id_ed25519_github_interstella -o IdentitiesOnly=yes
 ```
 
-**File: `~/.gitconfig-work`**
+**File: `~/.gitconfig-github_thorswap`**
 
 ```ini
 [user]
     name = Your Work Name
-    email = your-work-github-noreply@users.noreply.github.com
-    signingkey = ssh-ed25519 AAAA...your-work-key...
+    email = your-work-noreply@users.noreply.github.com
+    signingkey = ~/.ssh/id_ed25519_github_thorswap.pub
 [gpg]
     format = ssh
-[gpg "ssh"]
-    program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
 [core]
-    sshCommand = ssh -i ~/.ssh/work_1p.pub -o IdentitiesOnly=yes
+    sshCommand = ssh -i ~/.ssh/id_ed25519_github_thorswap -o IdentitiesOnly=yes
 ```
 
 ### How it works
 
 - [`includeIf "gitdir:"`](https://git-scm.com/docs/git-config#_conditional_includes) — git loads the matching config file based on repo directory
-- [`core.sshCommand`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coresshCommand) — tells git to use `ssh -i <public-key>` which makes the 1Password agent offer only the matching key
+- [`core.sshCommand`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coresshCommand) — tells git to use `ssh -i <private-key>` for this account's repos
 - [`-o IdentitiesOnly=yes`](https://man.openbsd.org/ssh_config#IdentitiesOnly) — prevents the agent from offering other keys (avoids GitHub picking the wrong account)
-- [`gpg.ssh.program`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-gpgsshprogram) — 1Password's `op-ssh-sign` handles commit signing with Touch ID ([1Password — Sign Git commits](https://developer.1password.com/docs/ssh/git-commit-signing/))
-- [`user.signingkey`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-usersigningKey) — tells `op-ssh-sign` which key to sign with
+- [`user.signingkey`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-usersigningKey) — points to the public key file; `ssh-keygen` reads it for signing
+- **No `gpg.ssh.program` needed** — Git defaults to `ssh-keygen` which handles SSH signing natively since Git 2.34
+
+**Why two different key paths?** `core.sshCommand` uses `-i <private-key>` because SSH reads the private key directly from disk (decrypted via agent/Keychain). The `signingkey` points to the `.pub` file because `ssh-keygen -Y sign` reads the public key to identify which key to sign with.
 
 ---
 
-## Step 7: Add keys to GitHub
+## Step 5: Add keys to GitHub
 
-For **each** GitHub account, add the corresponding SSH key as **both** Authentication and Signing key:
+For **each** GitHub account, add the corresponding SSH public key as **both** Authentication and Signing key:
 
-1. Log into the GitHub account
-2. Go to https://github.com/settings/ssh/new
-3. Add the public key as **Authentication Key** (for push/pull/clone)
-4. Add the same public key again as **Signing Key** (for verified commits)
+1. Copy the public key:
+   ```bash
+   cat ~/.ssh/id_ed25519_github_interstella.pub | pbcopy
+   ```
+2. Log into the GitHub account
+3. Go to https://github.com/settings/ssh/new
+4. Add as **Authentication Key** (for push/pull/clone)
+5. Add the same public key again as **Signing Key** (for verified commits)
+
+Repeat for each account.
 
 Ref: [GitHub — Adding a new SSH key to your account](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
 
-Ref: [GitHub — About commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#ssh-commit-signature-verification)
+---
+
+## Step 6: gh CLI via direnv
+
+Install direnv if not present:
+```bash
+which direnv || brew install direnv
+```
+
+Ensure direnv hook is in shell config (`~/.zshrc`):
+```bash
+grep -q 'direnv hook' ~/.zshrc || echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+```
+
+For each account, `gh auth login`:
+```bash
+gh auth login
+# Interactive: GitHub.com → SSH → select key → authenticate in browser
+```
+
+> **This command is interactive** — it opens a browser for OAuth. In Claude Code, tell the user to run it with `!` prefix.
+
+Create `.envrc` in each account's root directory:
+
+```bash
+echo 'export GH_TOKEN=$(gh auth token --user interstella-5555)' > ~/code/.envrc
+direnv allow ~/code/.envrc
+
+echo 'export GH_TOKEN=$(gh auth token --user paz-ts)' > ~/thorswap/.envrc
+direnv allow ~/thorswap/.envrc
+```
+
+`gh auth token --user <name>` reads the stored OAuth token from macOS Keychain ([gh environment docs](https://cli.github.com/manual/gh_help_environment)). direnv loads `.envrc` from parent directories automatically.
 
 ---
 
-## Step 8: Fix existing remotes
+## Step 7: Fix existing remotes
 
 If any repos use HTTPS or Host aliases, convert them to plain SSH:
 
@@ -216,18 +232,10 @@ If any repos use HTTPS or Host aliases, convert them to plain SSH:
 # Fix HTTPS → SSH
 git remote set-url origin git@github.com:org/repo.git
 
-# Fix Host alias → github.com
-# e.g. git@github-work:org/repo.git → git@github.com:org/repo.git
-git remote set-url origin git@github.com:org/repo.git
-```
-
-Bulk fix all repos in a directory:
-
-```bash
-for dir in ~/work/*/; do
+# Bulk fix all repos in a directory
+for dir in ~/code/*/; do
   [ -d "$dir/.git" ] || continue
   url=$(git -C "$dir" remote get-url origin 2>/dev/null)
-  # Fix HTTPS
   if echo "$url" | grep -q "https://github.com/"; then
     new_url=$(echo "$url" | sed 's|https://github.com/|git@github.com:|')
     git -C "$dir" remote set-url origin "$new_url"
@@ -236,52 +244,61 @@ for dir in ~/work/*/; do
 done
 ```
 
-Ref: [git-remote docs](https://git-scm.com/docs/git-remote)
-
 ---
 
-## Step 9: Verify
+## Step 8: Verify
+
+### SSH auth
+
+For each account, verify the correct key authenticates (use `-i` to match what `core.sshCommand` does — bare `ssh -T` may pick the wrong key):
 
 ```bash
-# Test SSH auth (should show correct account name)
-cd ~/personal/some-repo && ssh -T git@github.com
-# → Hi personal-account! You've successfully authenticated...
+ssh -i ~/.ssh/id_ed25519_github_interstella -o IdentitiesOnly=yes -T git@github.com
+# → Hi interstella-5555! You've successfully authenticated...
 
-cd ~/work/some-repo && ssh -T git@github.com
-# → Hi work-account! You've successfully authenticated...
+ssh -i ~/.ssh/id_ed25519_github_thorswap -o IdentitiesOnly=yes -T git@github.com
+# → Hi paz-ts! You've successfully authenticated...
+```
 
-# Test commit signing (should trigger Touch ID)
-cd ~/personal/some-repo && git commit --allow-empty -m "test signing"
+### Commit signing
+
+Test on a throwaway branch to avoid polluting history:
+
+```bash
+cd ~/code/some-repo
+git checkout -b test-signing
+git commit --allow-empty -m "test signing"
 git log --show-signature -1
 # → Good "git" signature with ED25519 key...
 
-# Check on GitHub
-git push
-# Commit should show "Verified" badge on GitHub
+# Push and check the "Verified" badge on GitHub
+git push -u origin test-signing
+open "$(git remote get-url origin | sed 's|git@github.com:|https://github.com/|;s|\.git$||')/commits/test-signing"
 ```
+
+Clean up — delete the test branch locally and on GitHub:
+
+```bash
+git checkout main
+git branch -D test-signing
+git push origin --delete test-signing
+```
+
+Repeat for each account.
 
 ---
 
-## Optional: Clean up previous signing setup
+## Optional: Clean up previous setup
 
-After switching to 1Password, you can remove any previous GPG or SSH signing infrastructure. This setup fully replaces GPG-based commit signing — 1Password handles both SSH auth and commit signing via [`op-ssh-sign`](https://developer.1password.com/docs/ssh/git-commit-signing/).
+If migrating from a previous signing setup, you can remove old infrastructure:
 
-Things to check and clean up:
-
-- **GPG installation** (homebrew): `brew uninstall gnupg` — removes GnuPG and its dependencies ([Homebrew docs](https://docs.brew.sh/FAQ#how-do-i-uninstall-a-formula))
-- **GPG data directory**: `rm -rf ~/.gnupg` — contains your old GPG keyring and config
-- **GPG shell config** — remove `GPG_TTY=$(tty)` and `export GPG_TTY` from `~/.zshrc` / `~/.bashrc` (only needed for GPG pinentry, not SSH signing)
-- **GPG Tools launch agents** (macOS) — if you had [GPG Suite](https://gpgtools.org/) installed:
-  ```bash
-  launchctl remove org.gpgtools.macgpg2.shutdown-gpg-agent 2>/dev/null
-  launchctl remove org.gpgtools.updater 2>/dev/null
-  launchctl remove org.gpgtools.macgpg2.fix 2>/dev/null
-  ```
-- **Old SSH keys on disk** — if you had `~/.ssh/id_ed25519_github` or similar keys that were only used for GitHub auth/signing, you can delete them. Keep keys used for other servers (VPS, etc.)
-- **Old keys on GitHub** — go to https://github.com/settings/keys and **manually review and delete** any keys you no longer need: old GPG keys, old SSH authentication keys, and old SSH signing keys. Only keep the new 1Password keys you just added. **Do this for each GitHub account.**
-- **Old `~/.ssh/config` Host aliases** — if you had `Host github-work` style aliases for multi-account SSH, they're no longer needed (replaced by `core.sshCommand` in gitconfig)
-- **Old `~/.gitconfig` GPG settings** — remove `gpg.program`, any `gpg.format = openpgp` entries. The per-directory gitconfig files handle `gpg.format = ssh` now
-- **Misc `~/.ssh/` cleanup** — remove `known_hosts.old` (stale backup), any old agent socket directories, `.DS_Store` files. Keep `known_hosts` (needed for SSH host verification)
+- **GPG installation** — `brew uninstall gnupg` if only used for git signing
+- **GPG data** — `rm -rf ~/.gnupg`
+- **GPG shell config** — remove `GPG_TTY` from `~/.zshrc`
+- **Old SSH keys on disk** — backup to `~/.ssh/backup/`, then `trash ~/.ssh/backup/` when ready
+- **Old keys on GitHub** — manually review at https://github.com/settings/keys and remove keys no longer needed
+- **Old `~/.ssh/config` Host aliases** — remove `Host github-*` style aliases (replaced by `core.sshCommand`)
+- **Old `~/.gitconfig` GPG settings** — remove `gpg.program`, any `gpg.format = openpgp` entries
 
 ---
 
@@ -289,50 +306,40 @@ Things to check and clean up:
 
 ### "Permission denied (publickey)" on push/pull
 
-1. Check agent has the key: `SSH_AUTH_SOCK=~/.1password/agent.sock ssh-add -l`
-2. Check correct key is offered: `GIT_SSH_COMMAND="ssh -v" git fetch 2>&1 | grep Offering`
-3. Check the key is added to GitHub as **Authentication Key**
+1. Check agent has key: `ssh-add -l`
+2. If empty: `ssh-add --apple-use-keychain ~/.ssh/id_ed25519_<suffix>`
+3. Check correct key is offered: `GIT_SSH_COMMAND="ssh -v" git fetch 2>&1 | grep Offering`
 4. Check `core.sshCommand` is set: `git config core.sshCommand`
-
-Ref: [GitHub — Troubleshooting SSH](https://docs.github.com/en/authentication/troubleshooting-ssh)
+5. Check the key is added to GitHub as **Authentication Key**
 
 ### Commit shows "Unverified" on GitHub
 
 1. Check the key is added to GitHub as **Signing Key** (not just Authentication)
-2. Check `git config user.email` matches the email on your GitHub account (including `@users.noreply.github.com`)
-3. Test locally: `git log --show-signature -1`
+2. Check `git config user.email` matches the email on your GitHub account
+3. Check `git config user.signingkey` points to existing `.pub` file
+4. Test locally: `git log --show-signature -1`
 
-Ref: [GitHub — Troubleshooting commit signature verification](https://docs.github.com/en/authentication/troubleshooting-commit-signature-verification)
+### Agent loses keys after restart
 
-### 1Password popup shows wrong key
+1. Check `~/.ssh/config` has both `AddKeysToAgent yes` and `UseKeychain yes`
+2. Manually re-add: `ssh-add --apple-use-keychain ~/.ssh/id_ed25519_<suffix>`
+3. Verify: `ssh-add -l` should list all keys
 
-The `core.sshCommand` with `-i <key>.pub -o IdentitiesOnly=yes` should prevent this. If it still happens:
-1. Verify `git config core.sshCommand` shows the correct key path
-2. Verify `git config user.signingkey` matches the same key
-3. Check you're in the right directory (the `includeIf "gitdir:"` must match)
+### Wrong account used for push
 
-### SSH works but signing doesn't
-
-1. Verify `op-ssh-sign` exists: `ls /Applications/1Password.app/Contents/MacOS/op-ssh-sign`
-2. Check git config: `git config gpg.ssh.program` should show the path above
-3. Check `git config commit.gpgsign` is `true`
-
-Ref: [1Password — Troubleshooting Git commit signing](https://developer.1password.com/docs/ssh/git-commit-signing/#troubleshooting)
+1. Check `includeIf` directory in `~/.gitconfig` matches your repo location (trailing `/` matters)
+2. Check `core.sshCommand` in the per-account gitconfig has `-o IdentitiesOnly=yes`
+3. Verify: `git config core.sshCommand` from inside the repo
 
 ---
 
 ## References
 
-- [1Password — SSH Agent: Get Started](https://developer.1password.com/docs/ssh/get-started/) — full setup walkthrough
-- [1Password — SSH Agent: Advanced Config](https://developer.1password.com/docs/ssh/agent/advanced/) — gradual migration, per-host config
-- [1Password — SSH Agent Config File](https://developer.1password.com/docs/ssh/agent/config/) — `agent.toml` vault/key filtering
-- [1Password — Sign Git Commits with SSH](https://developer.1password.com/docs/ssh/git-commit-signing/) — `op-ssh-sign` setup
-- [Apple — App Group Containers](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_application-groups) — explains the `2BUA8C4S2C` path
-- [Git — `git-config` (conditional includes, `core.sshCommand`, signing)](https://git-scm.com/docs/git-config)
-- [Git — Conditional Includes (`includeIf`)](https://git-scm.com/docs/git-config#_conditional_includes)
-- [OpenSSH — `ssh_config(5)` (`IdentityAgent`, `IdentitiesOnly`, `-i`)](https://man.openbsd.org/ssh_config)
-- [OpenSSH — `ssh(1)` (`-i` flag behavior with agents)](https://man.openbsd.org/ssh#-i)
+- [Apple — Technical Note TN2449: UseKeychain and AddKeysToAgent](https://developer.apple.com/library/archive/technotes/tn2449/_index.html)
+- [OpenSSH — `ssh_config(5)` (`UseKeychain`, `AddKeysToAgent`, `IdentitiesOnly`)](https://man.openbsd.org/ssh_config)
+- [OpenSSH — `ssh-keygen(1)` (key generation, `-Y sign` for Git signing)](https://man.openbsd.org/ssh-keygen)
+- [OpenSSH — `ssh-add(1)` (`--apple-use-keychain`)](https://man.openbsd.org/ssh-add)
+- [Git — `git-config` (conditional includes, `core.sshCommand`, SSH signing)](https://git-scm.com/docs/git-config)
 - [GitHub — Adding SSH keys to your account](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
 - [GitHub — About commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)
-- [GitHub — Managing multiple accounts](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-your-personal-account/managing-multiple-accounts)
-- [GitHub — Troubleshooting SSH](https://docs.github.com/en/authentication/troubleshooting-ssh)
+- [GitHub — Managing multiple accounts](https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-personal-account-on-github/managing-multiple-accounts)

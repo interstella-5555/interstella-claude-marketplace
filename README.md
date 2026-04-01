@@ -20,9 +20,9 @@ General-purpose Claude Code skills. Invoke as `/interstella:<skill-name>`.
 
 Multi-account GitHub identity management. Invoke as `/github-identity-manager`.
 
-Set up or repair: SSH authentication, commit signing, and `gh` CLI — with directory-based automatic account switching. Two key backends: **1Password** (vault + Touch ID) or **disk keys** (macOS Keychain, zero prompts). Includes migration between backends.
+Set up or repair: SSH authentication, commit signing, and `gh` CLI — with directory-based automatic account switching. Keys in `~/.ssh/`, passphrase in macOS Keychain — zero prompts after initial setup.
 
-[Setup guide (gist)](https://gist.github.com/interstella-5555/971f9111f58a67630e56d23e253814d9)
+[Single-account setup guide (gist)](https://gist.github.com/interstella-5555/971f9111f58a67630e56d23e253814d9)
 
 ## Recommended Community Skills
 
