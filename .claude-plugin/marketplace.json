@@ -1,0 +1,28 @@
+{
+  "name": "interstella-claude-marketplace",
+  "description": "Interstella's Claude Code plugin marketplace",
+  "owner": { "name": "interstella-5555" },
+  "metadata": { "version": "2.0.0", "pluginRoot": "./plugins" },
+  "plugins": [
+    {
+      "name": "interstella",
+      "description": "General-purpose skills: creating-skills, claude-md-improver, product-bible, screenshot, wait-on-resources",
+      "source": "./plugins/interstella",
+      "category": "productivity"
+    },
+    {
+      "name": "github-identity-manager",
+      "description": "Multi-account GitHub SSH auth, commit signing, and gh CLI — macOS Keychain, zero prompts",
+      "source": "./plugins/github-identity-manager",
+      "category": "developer-tools",
+      "keywords": ["github", "ssh", "git", "signing", "keychain"]
+    },
+    {
+      "name": "current-time",
+      "description": "Injects current date and time into every prompt so Claude always knows the time",
+      "source": "./plugins/current-time",
+      "category": "productivity",
+      "keywords": ["time", "date", "hook", "timestamp"]
+    }
+  ]
+}

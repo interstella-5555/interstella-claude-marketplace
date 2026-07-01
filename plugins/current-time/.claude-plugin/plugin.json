@@ -1,0 +1,6 @@
+{
+  "name": "current-time",
+  "description": "Injects the current date and time into every prompt via a UserPromptSubmit hook, so Claude always knows what time it is.",
+  "author": { "name": "interstella-5555" },
+  "repository": "https://github.com/interstella-5555/interstella-claude-marketplace"
+}
