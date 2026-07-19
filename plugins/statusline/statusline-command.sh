@@ -5,6 +5,7 @@ used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 wt_name=$(echo "$input" | jq -r '.worktree.name // empty')
 wt_branch=$(echo "$input" | jq -r '.worktree.branch // empty')
 model=$(echo "$input" | jq -r '.model.display_name // empty')
+model="${model%% *}"  # family only: "Opus 4.8" -> "Opus"
 effort=$(echo "$input" | jq -r '.effort.level // empty')
 
 sep=" · "
@@ -116,7 +117,7 @@ fi
 # Model + reasoning effort (effort absent when the model doesn't support it)
 if [ -n "$model" ]; then
   seg="$model"
-  [ -n "$effort" ] && seg="${seg} · ${effort} effort"
+  [ -n "$effort" ] && seg="${seg} · ${effort}"
   if [ -n "$parts" ]; then
     parts="${parts}${sep}${seg}"
   else
