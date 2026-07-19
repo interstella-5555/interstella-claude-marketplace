@@ -117,7 +117,7 @@ fi
 # Model + reasoning effort (effort absent when the model doesn't support it)
 if [ -n "$model" ]; then
   seg="$model"
-  [ -n "$effort" ] && seg="${seg} · ${effort}"
+  [ -n "$effort" ] && seg="${seg} ${effort}"
   if [ -n "$parts" ]; then
     parts="${parts}${sep}${seg}"
   else
