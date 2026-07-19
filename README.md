@@ -21,6 +21,9 @@ claude plugins install github-identity-manager@interstella-claude-marketplace
 
 # Install current-time (injects timestamp into every prompt)
 claude plugins install current-time@interstella-claude-marketplace
+
+# Install statusline (git branch/worktree + PR + context usage in the status bar)
+claude plugins install statusline@interstella-claude-marketplace
 ```
 
 ### 3. Restart Claude Code
@@ -34,6 +37,7 @@ claude plugins marketplace update interstella-claude-marketplace
 claude plugins update interstella@interstella-claude-marketplace
 claude plugins update github-identity-manager@interstella-claude-marketplace
 claude plugins update current-time@interstella-claude-marketplace
+claude plugins update statusline@interstella-claude-marketplace
 ```
 
 ## Plugins
@@ -53,6 +57,10 @@ General-purpose Claude Code skills. Invoke as `/interstella:<skill-name>`.
 ### current-time
 
 Injects the current date and time into every prompt via a `UserPromptSubmit` hook, so Claude always knows what time it is. No skills — just a hook.
+
+### statusline
+
+A fast POSIX-`sh` status line showing git branch/worktree, GitHub PR (with draft/merged/closed state, cached), and context-window usage. Since Claude Code only supports status lines via `settings.json`, this plugin ships the script and you wire it in once — or run the one-line installer. See [`plugins/statusline/README.md`](plugins/statusline/README.md).
 
 ### github-identity-manager
 

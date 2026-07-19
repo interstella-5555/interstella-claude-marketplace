@@ -23,6 +23,13 @@
       "source": "./plugins/current-time",
       "category": "productivity",
       "keywords": ["time", "date", "hook", "timestamp"]
+    },
+    {
+      "name": "statusline",
+      "description": "Status line showing git branch/worktree, GitHub PR (draft/merged/closed, cached), and context-window usage. Ships the script; wire it into settings.json (see plugin README)",
+      "source": "./plugins/statusline",
+      "category": "productivity",
+      "keywords": ["statusline", "git", "branch", "worktree", "pr", "context"]
     }
   ]
 }

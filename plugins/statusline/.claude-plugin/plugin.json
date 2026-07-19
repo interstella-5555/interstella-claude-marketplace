@@ -1,0 +1,6 @@
+{
+  "name": "statusline",
+  "description": "A fast POSIX-sh status line showing git branch/worktree, GitHub PR (with draft/merged/closed state, cached), and context-window usage. StatusLine is a settings-only feature, so this plugin ships the script and you wire it into settings.json once (see README).",
+  "author": { "name": "interstella-5555" },
+  "repository": "https://github.com/interstella-5555/interstella-claude-marketplace"
+}
