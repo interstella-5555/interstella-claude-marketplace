@@ -4,6 +4,8 @@ cwd=$(echo "$input" | jq -r '.cwd // empty')
 used=$(echo "$input" | jq -r '.context_window.used_percentage // empty')
 wt_name=$(echo "$input" | jq -r '.worktree.name // empty')
 wt_branch=$(echo "$input" | jq -r '.worktree.branch // empty')
+model=$(echo "$input" | jq -r '.model.display_name // empty')
+effort=$(echo "$input" | jq -r '.effort.level // empty')
 
 sep=" · "
 parts=""
@@ -108,6 +110,17 @@ if [ -n "$used" ]; then
     parts="${parts}${sep}${ctx}"
   else
     parts="${ctx}"
+  fi
+fi
+
+# Model + reasoning effort (effort absent when the model doesn't support it)
+if [ -n "$model" ]; then
+  seg="$model"
+  [ -n "$effort" ] && seg="${seg} · ${effort} effort"
+  if [ -n "$parts" ]; then
+    parts="${parts}${sep}${seg}"
+  else
+    parts="${seg}"
   fi
 fi
 

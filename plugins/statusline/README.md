@@ -5,6 +5,7 @@ A fast POSIX-`sh` status line for Claude Code. It reads the JSON that Claude Cod
 - **Git branch / worktree** — `⎇ branch`, or `⎇ worktree: name` inside a git worktree. Resolved by walking up the directory tree and parsing `.git/HEAD` directly (no `git` subprocess), so it's cheap and works in monorepos and subdirs.
 - **GitHub PR** — for non-`main`/`master` branches, shows a clickable `PR #123` with `(draft)` / `(merged)` / `(closed)` state. Uses `gh pr view`, cached in `/tmp` with a 60s TTL and refreshed in the background so it never blocks rendering.
 - **Context usage** — `NN% context`, colored yellow at ≥30% and bold red at ≥50%.
+- **Model + effort** — the active model's display name, and the reasoning effort (`low`/`medium`/`high`/`xhigh`/`max`) when the model supports it, e.g. `Opus 4.8 · high effort`.
 
 Requires `jq` and (for the PR segment) the `gh` CLI.
 
