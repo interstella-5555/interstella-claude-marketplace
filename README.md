@@ -70,6 +70,27 @@ Set up or repair: SSH authentication, commit signing, and `gh` CLI — with dire
 
 [Single-account setup guide (gist)](https://gist.github.com/interstella-5555/971f9111f58a67630e56d23e253814d9)
 
+## Tools
+
+Standalone shell utilities, not part of any plugin.
+
+### main — switch to default branch & fast-forward
+
+[`tools/git-main.zsh`](tools/git-main.zsh) — a zsh function that switches the current repo to its default branch (`main`/`master`, auto-detected) and fast-forwards it to `origin`. Handles the tricky cases: default branch checked out in another worktree (creates a scratch branch instead), diverged history (refuses with a recommendation), dirty working tree (warns). Usage: just type `main` in any repo.
+
+Install on any Mac:
+
+```bash
+mkdir -p ~/.zsh/functions
+curl -fsSL -o ~/.zsh/functions/git-main.zsh https://raw.githubusercontent.com/interstella-5555/interstella-claude-marketplace/main/tools/git-main.zsh
+grep -qF '.zsh/functions/*.zsh(N)' ~/.zshrc || echo 'for f in "$HOME"/.zsh/functions/*.zsh(N); do source "$f"; done' >> ~/.zshrc
+exec zsh
+```
+
+Or paste this prompt into Claude Code:
+
+> Install the `main` zsh function from https://raw.githubusercontent.com/interstella-5555/interstella-claude-marketplace/main/tools/git-main.zsh into ~/.zsh/functions/ and make sure my ~/.zshrc sources all *.zsh files from that directory.
+
 ## Recommended Community Skills
 
 Standalone skills worth installing alongside this marketplace:
